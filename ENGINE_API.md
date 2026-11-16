@@ -1,5 +1,7 @@
 # Engine integration proposal
 
-The `game` package is independent of the server and client. The proposed server entry point is `BlackjackGame` with `startGame()`, `hit()`, `stand()`, and `getGameState()`. The state should expose the player's cards and score, the dealer's visible card during play, and the result and full dealer hand after the round. Invalid actions should throw `IllegalStateException`. This contract is a proposal for Zahran to review, not an agreed final API.
+The `game` package is independent of the server and client. `BlackjackGame` provides `startGame()`, `hit()`, `stand()`, and `getGameState()`. Invalid actions throw `IllegalStateException`. A new round may start after the previous round finishes.
 
-Next steps: agree on the state and result types, implement round and dealer logic, test deterministic rounds, and integrate with the server. The Java version and build should be revisited if course requirements or Zahran's existing work require changes.
+`GameState` is a snapshot: `getStatus()` returns `NOT_STARTED`, `PLAYER_TURN`, or `FINISHED`; `getResult()` returns `PLAYER_WIN`, `DEALER_WIN`, or `PUSH` after a round and is otherwise null. `getPlayerCards()` and `getPlayerScore()` describe the player. `getDealerCards()` exposes only the first card during the player's turn, then the full hand when finished. Card lists cannot be modified. A natural Blackjack ends the round immediately.
+
+This API remains a proposal for Zahran to review; server integration and the complete application are still pending. The Java version and build should be revisited if course requirements require changes.
