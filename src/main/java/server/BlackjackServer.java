@@ -1,5 +1,10 @@
 package server;
 
+import game.BlackjackGame;
+import game.GameState;
+
+import java.util.Locale;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -49,15 +54,39 @@ public class BlackjackServer implements AutoCloseable {
     private void handleClient(Socket client) throws IOException {
         try (BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
              PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
+            BlackjackGame game = new BlackjackGame();
             String command;
             while ((command = input.readLine()) != null) {
-                if (command.equalsIgnoreCase("QUIT")) {
+                String action = command.trim().toUpperCase(Locale.ROOT);
+                if (action.equals("QUIT")) {
                     output.println("Goodbye.");
                     return;
                 }
-                output.println("Unknown command. Enter QUIT to disconnect.");
+                try {
+                    switch (action) {
+                        case "START" -> game.startGame();
+                        case "HIT" -> game.hit();
+                        case "STAND" -> game.stand();
+                        default -> {
+                            output.println("Unknown command. Use START, HIT, STAND, or QUIT.");
+                            continue;
+                        }
+                    }
+                    output.println(formatState(game.getGameState()));
+                } catch (IllegalStateException e) {
+                    output.println("Invalid action: " + e.getMessage());
+                }
             }
         }
+    }
+
+    private String formatState(GameState state) {
+        String message = "Player: " + state.getPlayerCards() + " (score: " + state.getPlayerScore()
+                + "); Dealer: " + state.getDealerCards();
+        if (state.getStatus() == GameState.Status.FINISHED) {
+            return message + "; Result: " + state.getResult() + ". Enter START for another round.";
+        }
+        return message + "; Enter HIT or STAND.";
     }
 
     @Override

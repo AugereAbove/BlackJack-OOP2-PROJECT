@@ -32,7 +32,28 @@ class BlackjackServerTest {
                      PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
                     client.setSoTimeout(2000);
                     output.println("HIT");
-                    assertEquals("Unknown command. Enter QUIT to disconnect.", input.readLine());
+                    assertTrue(input.readLine().startsWith("Invalid action:"));
+                    output.println("invalid");
+                    assertTrue(input.readLine().startsWith("Unknown command."));
+                    output.println("START");
+                    String state = input.readLine();
+                    assertTrue(state.contains("Player:"));
+                    assertTrue(state.contains("Dealer:"));
+                    if (!state.contains("Result:")) {
+                        assertTrue(state.contains("Enter HIT or STAND."));
+                        output.println("HIT");
+                        state = input.readLine();
+                        assertTrue(state.contains("Player:"));
+                        if (!state.contains("Result:")) {
+                            output.println("STAND");
+                            state = input.readLine();
+                            assertTrue(state.contains("Result:"));
+                        }
+                    }
+                    output.println("STAND");
+                    assertTrue(input.readLine().startsWith("Invalid action:"));
+                    output.println("START");
+                    assertTrue(input.readLine().contains("Player:"));
                     output.println("quit");
                     assertEquals("Goodbye.", input.readLine());
                     assertNull(input.readLine());
