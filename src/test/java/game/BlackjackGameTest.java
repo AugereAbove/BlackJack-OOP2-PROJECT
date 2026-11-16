@@ -83,4 +83,43 @@ class BlackjackGameTest {
         assertEquals(2, game.getGameState().getPlayerCards().size());
         assertEquals(1, game.getGameState().getDealerCards().size());
     }
+    @Test
+    void hitUpdatesScoreAndDealerRemainsHidden() {
+        BlackjackGame game = game(ACE, TEN, FIVE, SIX, NINE, FIVE);
+        game.startGame();
+        GameState before = game.getGameState();
+        assertEquals(16, before.getPlayerScore());
+        game.hit();
+        GameState after = game.getGameState();
+        assertEquals(15, after.getPlayerScore());
+        assertEquals(3, after.getPlayerCards().size());
+        assertEquals(1, after.getDealerCards().size());
+        assertEquals(2, before.getPlayerCards().size());
+        assertThrows(UnsupportedOperationException.class, () -> after.getDealerCards().clear());
+        game.stand();
+        assertEquals(DEALER_WIN, game.getGameState().getResult());
+        assertEquals(3, game.getGameState().getDealerCards().size());
+    }
+
+    @Test
+    void threeCardTwentyOneCanPushDealerTwentyOne() {
+        BlackjackGame game = game(TEN, TEN, FIVE, SIX, SIX, FIVE);
+        game.startGame();
+        game.hit();
+        assertEquals(21, game.getGameState().getPlayerScore());
+        game.stand();
+        assertEquals(PUSH, game.getGameState().getResult());
+    }
+
+    @Test
+    void newGameHasNoCardsAndRejectsActions() {
+        BlackjackGame game = game(TEN, NINE, SEVEN, EIGHT);
+        GameState state = game.getGameState();
+        assertEquals(NOT_STARTED, state.getStatus());
+        assertEquals(0, state.getPlayerScore());
+        assertTrue(state.getPlayerCards().isEmpty());
+        assertTrue(state.getDealerCards().isEmpty());
+        assertNull(state.getResult());
+        assertThrows(IllegalStateException.class, game::hit);
+    }
 }
