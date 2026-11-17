@@ -2,6 +2,8 @@ package server;
 
 import game.BlackjackGame;
 import game.GameState;
+import storage.GameStats;
+import storage.StatsStorage;
 
 import java.util.Locale;
 
@@ -12,12 +14,22 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 
 public class BlackjackServer implements AutoCloseable {
     private final ServerSocket serverSocket;
     private volatile Socket currentClient;
+    private final StatsStorage storage;
+    private GameStats stats;
+    private boolean statsFailed;
 
     public BlackjackServer(int port) throws IOException {
+        this(port, Path.of(System.getProperty("user.home"), ".blackjack-stats.properties"));
+    }
+
+    public BlackjackServer(int port, Path statsPath) throws IOException {
+        storage = new StatsStorage(statsPath);
+        stats = storage.loadStats();
         serverSocket = new ServerSocket(port);
     }
 
@@ -62,22 +74,51 @@ public class BlackjackServer implements AutoCloseable {
                     output.println("Goodbye.");
                     return;
                 }
+                if (action.equals("STATS")) {
+                    output.println("Games: " + stats.gamesPlayed() + "; Wins: " + stats.wins()
+                            + "; Losses: " + stats.losses() + "; Pushes: " + stats.pushes());
+                    continue;
+                }
+                if (statsFailed) {
+                    output.println("Statistics could not be saved. Restart the server after checking storage.");
+                    continue;
+                }
                 try {
                     switch (action) {
                         case "START" -> game.startGame();
                         case "HIT" -> game.hit();
                         case "STAND" -> game.stand();
                         default -> {
-                            output.println("Unknown command. Use START, HIT, STAND, or QUIT.");
+                            output.println("Unknown command. Use START, HIT, STAND, STATS, or QUIT.");
                             continue;
                         }
                     }
-                    output.println(formatState(game.getGameState()));
+                    GameState state = game.getGameState();
+                    String response = formatState(state);
+                    if (state.getStatus() == GameState.Status.FINISHED) {
+                        try {
+                            saveResult(state.getResult());
+                        } catch (IOException | IllegalArgumentException | ArithmeticException e) {
+                            statsFailed = true;
+                            System.err.println("Could not save statistics: " + e.getMessage());
+                            response += " Statistics could not be saved; ask the server operator to check storage.";
+                        }
+                    }
+                    output.println(response);
                 } catch (IllegalStateException e) {
                     output.println("Invalid action: " + e.getMessage());
                 }
             }
         }
+    }
+
+    private void saveResult(GameState.Result result) throws IOException {
+        GameStats updated = new GameStats(
+                Math.addExact(stats.wins(), result == GameState.Result.PLAYER_WIN ? 1 : 0),
+                Math.addExact(stats.losses(), result == GameState.Result.DEALER_WIN ? 1 : 0),
+                Math.addExact(stats.pushes(), result == GameState.Result.PUSH ? 1 : 0));
+        storage.saveStats(updated);
+        stats = updated;
     }
 
     private String formatState(GameState state) {

@@ -16,7 +16,7 @@ public class BlackjackClient {
                  BufferedReader console = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
                  BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
                  PrintWriter output = new PrintWriter(socket.getOutputStream(), true, StandardCharsets.UTF_8)) {
-                System.out.println("Connected. Enter START, HIT, STAND, or QUIT.");
+                System.out.println("Connected. Enter START, HIT, STAND, STATS, or QUIT.");
                 String command;
                 while ((command = console.readLine()) != null) {
                     output.println(command);
