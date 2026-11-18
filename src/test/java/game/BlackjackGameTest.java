@@ -122,4 +122,25 @@ class BlackjackGameTest {
         assertNull(state.getResult());
         assertThrows(IllegalStateException.class, game::hit);
     }
+    @Test
+    void newRoundReplacesBothHandsAndClearsTheResult() {
+        Queue<Card.Rank> ranks = new ArrayDeque<>(Arrays.asList(
+                ACE, TEN, KING, NINE, FOUR, EIGHT, FIVE, SEVEN));
+        BlackjackGame game = new BlackjackGame(() -> new Deck() {
+            @Override public Card deal() { return new Card(ranks.remove(), Card.Suit.CLUBS); }
+        });
+        game.startGame();
+        GameState firstRound = game.getGameState();
+        assertEquals(PLAYER_WIN, firstRound.getResult());
+        assertEquals(2, firstRound.getDealerCards().size());
+        game.startGame();
+        GameState secondRound = game.getGameState();
+        assertEquals(PLAYER_TURN, secondRound.getStatus());
+        assertNull(secondRound.getResult());
+        assertEquals(9, secondRound.getPlayerScore());
+        assertEquals(1, secondRound.getDealerCards().size());
+        assertEquals(EIGHT, secondRound.getDealerCards().get(0).getRank());
+        assertEquals(PLAYER_WIN, firstRound.getResult());
+        assertEquals(21, firstRound.getPlayerScore());
+    }
 }

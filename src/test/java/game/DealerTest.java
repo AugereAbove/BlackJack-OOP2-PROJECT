@@ -52,4 +52,14 @@ class DealerTest {
         dealer.play(deck(card(Card.Rank.KING)));
         assertTrue(dealer.getHand().isBust());
     }
+    @Test
+    void keepsDrawingWhenAnAceChangesToOne() {
+        Dealer dealer = new Dealer();
+        dealer.getHand().addCard(card(Card.Rank.ACE));
+        dealer.getHand().addCard(card(Card.Rank.FIVE));
+        dealer.play(deck(card(Card.Rank.TEN), card(Card.Rank.TWO)));
+        assertEquals(18, dealer.getHand().getScore());
+        assertEquals(4, dealer.getHand().getCards().size());
+        assertFalse(dealer.getHand().isBust());
+    }
 }
