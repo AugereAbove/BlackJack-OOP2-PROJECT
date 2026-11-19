@@ -144,4 +144,49 @@ class BlackjackServerTest {
             restartExecutor.shutdownNow();
         }
     }
+    @Test
+    void hidesDealerCardAndHandlesAbruptDisconnect() throws Exception {
+        Path path = directory.resolve("stats.properties");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (BlackjackServer server = new BlackjackServer(0, path)) {
+            Future<?> running = executor.submit(() -> {
+                try {
+                    server.startServer();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            try {
+                boolean sawPlayerTurn = false;
+                try (Socket client = new Socket("127.0.0.1", server.getPort());
+                     BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
+                     PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
+                    client.setSoTimeout(2000);
+                    for (int i = 0; i < 20 && !sawPlayerTurn; i++) {
+                        output.println("START");
+                        String response = input.readLine();
+                        if (!response.contains("Result:")) {
+                            String dealer = response.substring(response.indexOf("Dealer: [") + 9, response.indexOf("]; Enter"));
+                            assertFalse(dealer.contains(","));
+                            sawPlayerTurn = true;
+                        }
+                    }
+                    assertTrue(sawPlayerTurn);
+                }
+                int completed = new StatsStorage(path).loadStats().gamesPlayed();
+                try (Socket client = new Socket("127.0.0.1", server.getPort());
+                     BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
+                     PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
+                    client.setSoTimeout(2000);
+                    output.println("STATS");
+                    assertTrue(input.readLine().startsWith("Games: " + completed + ";"));
+                }
+            } finally {
+                server.close();
+            }
+            running.get(2, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 }
