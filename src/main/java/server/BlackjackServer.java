@@ -101,7 +101,8 @@ public class BlackjackServer implements AutoCloseable {
                         } catch (IOException | IllegalArgumentException | ArithmeticException e) {
                             statsFailed = true;
                             System.err.println("Could not save statistics: " + e.getMessage());
-                            response += " Statistics could not be saved; ask the server operator to check storage.";
+                            response = response.replace(" Enter START for another round.", "")
+                                    + " Statistics could not be saved; ask the server operator to check storage.";
                         }
                     }
                     output.println(response);

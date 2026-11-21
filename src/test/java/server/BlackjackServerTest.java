@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.io.IOException;
 import storage.GameStats;
 import storage.StatsStorage;
 
@@ -188,5 +190,52 @@ class BlackjackServerTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+    @Test
+    void reportsStorageFailureAndStopsNewRounds() throws Exception {
+        Path path = directory.resolve("missing").resolve("stats.properties");
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (BlackjackServer server = new BlackjackServer(0, path)) {
+            Future<?> running = executor.submit(() -> {
+                try {
+                    server.startServer();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            try (Socket client = new Socket("127.0.0.1", server.getPort());
+                 BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
+                 PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
+                client.setSoTimeout(2000);
+                output.println("START");
+                String response = input.readLine();
+                if (!response.contains("Result:")) {
+                    output.println("STAND");
+                    response = input.readLine();
+                }
+                assertTrue(response.contains("Result:"));
+                assertTrue(response.contains("Statistics could not be saved"));
+                assertFalse(response.contains("Enter START for another round"));
+                output.println("START");
+                assertTrue(input.readLine().contains("Statistics could not be saved"));
+                output.println("STATS");
+                assertTrue(input.readLine().startsWith("Games: 0;"));
+                output.println("QUIT");
+                assertEquals("Goodbye.", input.readLine());
+            } finally {
+                server.close();
+            }
+            running.get(2, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+    @Test
+    void rejectsInvalidStatsWithoutOverwritingThem() throws Exception {
+        Path path = directory.resolve("stats.properties");
+        String invalid = "games=bad\nwins=1\nlosses=0\npushes=0\n";
+        Files.writeString(path, invalid);
+        assertThrows(IOException.class, () -> new BlackjackServer(0, path));
+        assertEquals(invalid, Files.readString(path));
     }
 }
