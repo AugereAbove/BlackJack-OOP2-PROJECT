@@ -160,6 +160,7 @@ class BlackjackServerTest {
             });
             try {
                 boolean sawPlayerTurn = false;
+                String statsBeforeDisconnect;
                 try (Socket client = new Socket("127.0.0.1", server.getPort());
                      BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
                      PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
@@ -174,14 +175,15 @@ class BlackjackServerTest {
                         }
                     }
                     assertTrue(sawPlayerTurn);
+                    output.println("STATS");
+                    statsBeforeDisconnect = input.readLine();
                 }
-                int completed = new StatsStorage(path).loadStats().gamesPlayed();
                 try (Socket client = new Socket("127.0.0.1", server.getPort());
                      BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream(), StandardCharsets.UTF_8));
                      PrintWriter output = new PrintWriter(client.getOutputStream(), true, StandardCharsets.UTF_8)) {
                     client.setSoTimeout(2000);
                     output.println("STATS");
-                    assertTrue(input.readLine().startsWith("Games: " + completed + ";"));
+                    assertEquals(statsBeforeDisconnect, input.readLine());
                 }
             } finally {
                 server.close();
